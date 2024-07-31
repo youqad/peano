@@ -1,6 +1,6 @@
 # Peano - Learning Formal Mathematical Reasoning
 
-*(Note: this repository is frozen at the version we released in the paper linked below. Peano is being heavily actively developed, with a new major release by July 2024, along with a new arXiv paper).*
+*(Note: this repository is frozen at the version we released in the paper linked below. Peano is being heavily actively developed, with a new major release by early August 2024, accompanying [this paper](https://arxiv.org/abs/2407.00695)).*
 
 Peano is a formal theorem proving environment based on a dependent type system and a finitely axiomatized proof system.
 Given any theory (some simple examples are in `theories`) and a problem, Peano provides a finite action space to produce /derivations/
@@ -65,12 +65,86 @@ Note that this must be slightly adjusted on Mac (i.e., you'll link `peano.dylib`
 
 If this works, then you're ready to use Peano from Python.
 
-The main file to use to reproduce the Khan Academy experiments from the paper is `learning.py`, which will start an agent
-to learn to solve problems using reinforcement learning and tactic induction. The config files and exact commands to run will come soon -
-feel free to open an issue if you're interested in those and this hasn't been updated yet!
+The main file to use to reproduce the Khan Academy experiments from the paper is `trainer.py`, which will start an agent
+to learn to solve problems using reinforcement learning and tactic induction.
 
 The Python dependencies can be installed with:
 
 ```sh
 [learning] $ pip install -r requirements.txt
 ```
+
+We use hydra for configuring the runs: the main configuration file to drive runs is `learning/config/trainer.yaml`.
+By default, this config file will run an agent that (a) trains on all 5 Khan Academy domains at once (i.e., no curriculum),
+and (b) does tactic induction. This behavior can be changed in the config to run other ablations.
+
+To run the default experiment, simply run:
+```sh
+[learning] $ python trainer.py ++trainer.n_searchers=1 ++trainer.gpus=[0]
+```
+
+This spawns a trainer job with the configuration in `config/trainer.yaml`, using one "searcher" process at each iteration, and one GPU (at rank 0). If you pass no GPUs, it will run on the CPU (not recommended, since it will be slow). The trainer job will basically run a training loop which, at each iteration (a) generates a batch of problems, (b) spawns searchers to try to solve the problems, (c) evaluates the current policy in each domain, and (d) learns from the solutions found by the searchers (in the default config, this means both inducing tactics and training the policy).
+
+The main experiments in the paper ran in 4 hours using 8 searchers (you can likely fit several searchers in a single GPU, since the models we use don't use that much GPU memory). Proof search starts to be significantly faster once the agent induces a few useful tactics, since it will then solve easy problems very quickly.
+
+By default, evaluation performance on all domains will be tracked on wandb, which we recommend you to set up. The hydra output directory created for your run (`learning/outputs/<date>/<time>`) will also contain all policy checkpoints, JSON files with all intermediate results, etc.
+
+### Play the policy yourself
+
+To get a concrete sense of the search problem that the agent is learning to solve, you can use the following command to interact with the environment yourself, choose a problem and pick actions until you solve it.
+
+```sh
+[learning] $ python interact.py --environment  --domain subst-eval
+```
+
+You can type b to choose a problem, then the number of the problem. For example:
+
+```sh
+[learning] $ python interact.py --environment  --domain subst-eval
+a) Type problem, b) select one from list, or Enter for debug mode: b
+Pick a problem:
+[...]
+ 2 -  (= x (+ -2 1))
+[...]
+
+> 2
+### Solution:
+G:(= x ?)
+(= x (+ -2 1))
+Action:
+ 0 -  eval
+ 1 -  rewrite
+> 0
+### Solution:
+G:(= x ?)
+(= x (+ -2 1))
+eval:-###
+Action:
+ 0 -  (= (+ -2 1) -1)
+> 0
+### Solution:
+G:(= x ?)
+(= x (+ -2 1))
+eval:-(= (+ -2 1) -1)
+Action:
+ 0 -  eval
+ 1 -  rewrite
+> 1
+### Solution:
+G:(= x ?)
+(= x (+ -2 1))
+eval:-(= (+ -2 1) -1)
+rewrite:-###
+Action:
+ 0 -  (= (+ -2 1) (+ -2 1))
+ 1 -  (= x -1)
+ 2 -  (= -1 -1)
+> 1
+Solved in 4 steps!
+Solution:
+ interactive: ?0 <- eval ?a@*; ?1 <- rewrite ?0, ?a@*
+Arguments: [['equation@type@2'], ['!step0', 'equation@type@2']]
+Probability of this trajectory for a random policy: 0.08333333333333333
+```
+
+If you want to be more adventurous, you can try one of the equation domains interactively, like two-step-eq. It will quickly get tedious to solve these problems by hand from the low-level axioms, but you can get a sense of the action space in this way.

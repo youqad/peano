@@ -279,7 +279,7 @@ if __name__ == '__main__':
     parser.add_argument('--print-tactics', help='Pretty print generated tactics from the given pickle file.', type=str)
     parser.add_argument('--tactics', help='Load tactics in the domain.', type=str)
     parser.add_argument('--proof-search', help='Run proof seearch on a problem', action='store_true')
-    parser.add_argument('--domain', help='Which domain to use.', type=str, default='equations')
+    parser.add_argument('--domain', help='Which domain to use.', type=str, default='subst-eval')
     parser.add_argument('--policy', help='Interact with a pre-trained policy', action='store_true')
     parser.add_argument('--random-rollouts', help='Try to solve problems using random rollouts', action='store_true')
     parser.add_argument('--gpu', help='GPU device to use.', type=int)
