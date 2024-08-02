@@ -960,7 +960,7 @@ class ContrastivePolicy(Policy):
         for e in batch:
             if e.type == ExampleType.STATE_ACTION:
                 p = self.score_arrows([e.positive] + e.negatives, e.state)
-                losses.append(F.cross_entropy(p, torch.tensor(0).to(p.device)))
+                losses.append(F.cross_entropy(p.unsqueeze(0), torch.zeros((1,), device=p.device, dtype=torch.long)))
             elif e.type != ExampleType.STATE_VALUE:
                 raise ValueError(f'Unknown example type {e.type}')
 
